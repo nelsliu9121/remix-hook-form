@@ -54,6 +54,9 @@ describe("parseFormData", () => {
   beforeAll(() => {
     global.Request = vi.fn();
     global.Request.prototype.formData = vi.fn();
+    global.Request.prototype.json = vi.fn();
+    // @ts-expect-error `headers` is readonly, thus replacing it gives an error
+    global.Request.prototype["headers"] = { get: vi.fn() };
   });
 
   // Reset the mocks after each test
@@ -69,6 +72,20 @@ describe("parseFormData", () => {
     const request = new Request("http://localhost:3000");
     const requestFormDataSpy = vi.spyOn(request, "formData");
     requestFormDataSpy.mockResolvedValueOnce(createFormData(data));
+    const parsedData = await parseFormData<typeof data>(request);
+    expect(parsedData).toEqual(data);
+  });
+
+  it("should parse the data from the request object if content type is json", async () => {
+    const data = {
+      name: "Jane Doe",
+      age: "20",
+    };
+    const request = new Request("http://localhost:3000");
+    const requestFormDataSpy = vi.spyOn(request, "json");
+    requestFormDataSpy.mockResolvedValueOnce(data);
+    const getHeadersSpy = vi.spyOn(request.headers, "get");
+    getHeadersSpy.mockReturnValue('application/json');
     const parsedData = await parseFormData<typeof data>(request);
     expect(parsedData).toEqual(data);
   });

@@ -90,6 +90,12 @@ export const getFormDataFromSearchParams = (
 export const isGet = (request: Pick<Request, "method">) =>
   request.method === "GET" || request.method === "get";
 
+export const isJsonRequest = (request: Pick<Request, "headers">) => {
+  const contentType= request.headers.get('content-type') ?? request.headers.get('Content-Type') ?? '';
+
+  return contentType === 'application/json';
+};
+
 /**
  * Parses the data from an HTTP request and validates it against a schema. Works in both loaders and actions, in loaders it extracts the data from the search params.
  * In actions it extracts it from request formData.
@@ -182,7 +188,7 @@ export const createFormData = <T extends FieldValues>(
 
 /**
 Parses the specified Request object's FormData to retrieve the data associated with the specified key.
-Or parses the specified FormData to retrieve the data 
+Or parses the specified FormData to retrieve the data
 @template T - The type of the data to be returned.
 @param {Request | FormData} request - The Request object whose FormData is to be parsed.
 @param {boolean} [preserveStringified=false] - Whether to preserve stringified values or try to convert them
@@ -193,7 +199,13 @@ export const parseFormData = async <T extends any>(
   request: Request | FormData,
   preserveStringified = false,
 ): Promise<T> => {
-  const formData =
-    request instanceof Request ? await request.formData() : request;
-  return generateFormData(formData, preserveStringified);
+  if (request instanceof Request) {
+    if (isJsonRequest(request)) {
+      return request.json();
+    }
+
+    return generateFormData(await request.formData(), preserveStringified);
+  }
+
+  return generateFormData(request, preserveStringified);
 };
